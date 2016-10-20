@@ -1,0 +1,152 @@
+# -*- coding:utf-8 -*-
+
+import csv
+from numpy import *
+import operator
+import pylab as pl
+import pandas as pd
+from datetime import datetime
+from sklearn.tree import DecisionTreeClassifier
+from sklearn import linear_model,datasets,metrics
+
+        
+def findoneday(csvfile,day):
+#找到特定某一天出发的航班数并返回对应的去哪网免税价格及每个的记录生成时间
+    reader=csv.reader(file(csvfile,'rb'))
+    tmp=[]
+    
+    for line in reader:
+        str="".join(line).split('\t')
+        tmp.append(str)
+   
+    numberoflines=0#该天航班数
+    index=0
+    label=[]
+    for i in tmp:
+        if i[0].find(day)<>-1:
+            numberoflines+=1
+    price=[]
+    for i in tmp:
+        if i[0].find(day)<>-1:
+            price.append(float(i[3]))#去哪网价格
+            str=i[7]
+            i[7]=str[0:10]
+            label.append(i[7])  #记录生成时间
+            
+    return price,label,numberoflines
+    
+    
+def findminprice(csvfile,day):#找到某天出发的航班在50个观测日的最小值
+    pset,label,numday=findoneday(csvfile,day)
+    label0=list(set(label))#得到观测日期的不重复记录
+    label0.sort()
+    numday0=len(label0)   
+    minprice=[]
+    for i in range(numday0):
+        lowerp=100000.0
+        for j in range(numday):
+            if label[j]==label0[i]:
+                if pset[j]<lowerp:
+                    lowerp=pset[j]
+        minprice.append(lowerp)   
+    viewlength=len(label0)
+    return minprice,label0,viewlength
+
+def multiprediction(csvfile,departuredate,viewdate):#the multiprediction of viewdate of the departuredate
+    
+    T=7
+    minprice,label,viewlength=findminprice(csvfile,departuredate)
+    length=len(label)
+    i=0
+    for i in range(length):
+        if label[i].find(viewdate)<>-1:
+            break       
+    label=pl.datestr2num(label)
+    # label=mat(label).T
+    tmp=label
+    label=[]
+    for j in tmp:#这里是为了自变量大小与因变量匹配所以使用嵌套的list
+        label.append([j])
+    prediction=[]
+    label0=label[0:i+1]
+    minprice=minprice[0:i+1]
+    clf=linear_model.Ridge(alpha=1.0)
+    # model=DecisionTreeClassifier()
+    for j in range(T):
+        clf.fit(label0,minprice)
+        # model.fit(label0,minprice)
+        if (i+j+1)<viewlength:
+            minprice.append(clf.predict(label[i+j+1]))
+            label0=label[0:i+j+2]
+            prediction.append(clf.predict(label[i+j+1]))
+    prelength=len(prediction)
+    count=0
+    for j in range(prelength):
+        if prediction[j]<minprice[i]:
+            count++
+    percentage=count/prelength
+    return prediction,percentage
+
+def percent(csvfile,departuredate):
+    percentagelist=[]
+    minprice,label,viewlength=findminprice(csvfile,departuredate)
+    for date in label:
+        prediction,percentage=multiprediction(csvfile,departuredate,date)
+        percentagelist.append(percentage)
+    return percentagelist
+
+def dynamictheta(citypair,departuredate,viewlength):#make decision and assess the result
+    csvfile='C:\Users\Administrator\Desktop\paper\data/international-crawler/'+citypair
+    minprice,label=findminprice(csvfile,departuredate)
+    partialminprice=minprice[viewlength]
+    partiallabel=label[viewlength]
+    jmax=max(partialminprice)
+    jmin=min(partialminprice)
+    # print jmax,jmin
+    i=0
+    minp=partialminprice[0]
+    for date in partiallabel:
+        
+        theta=-0.02375*(40-i)+1
+        prediction=multiprediction(csvfile,departuredate,date)
+        
+        num=len(prediction)
+        j=0
+        count=0.0
+        for j in range(num):
+            if prediction[j]<partialminprice[i]:
+                count+=1
+        if num!=0:
+            percentage=count/num
+            # print count,percentage
+            if percentage<theta:#低价比例小就购买
+                pb=partialminprice[i]            
+                break            
+        else:
+            pb=partialminprice[i]
+        i+=1
+    # print i,pb   
+    loss=(pb-jmin)/(jmax-jmin)
+    gain=(jmax-pb)/(jmax-jmin)
+    return loss,gain
+    
+
+# startdate='2015-04-15'
+
+# startdate=pl.datestr2num(startdate)
+# dateset=[]
+# loss=0.0
+# gain=0.0
+# for i in range(200):#2015-04-15到2015-10-31
+    # newdate=startdate+i
+    # newdate=pl.num2date(newdate)
+    # newdate=str(newdate)
+    # newdate=newdate[0:10]
+    # dateset.append(newdate)
+# for date in dateset:
+    # loss0,gain0=s3judgement('C:\Users\Administrator\Desktop\paper\data/international-crawler/BJS-HKG.csv',date)
+    # loss+=loss0
+    # gain+=gain0
+# loss=loss/200.0
+# gain=gain/200.0
+# print loss,gain
