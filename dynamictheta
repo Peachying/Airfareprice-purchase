@@ -131,22 +131,3 @@ def dynamictheta(citypair,departuredate,viewlength):#make decision and assess th
     return loss,gain
     
 
-# startdate='2015-04-15'
-
-# startdate=pl.datestr2num(startdate)
-# dateset=[]
-# loss=0.0
-# gain=0.0
-# for i in range(200):#2015-04-15到2015-10-31
-    # newdate=startdate+i
-    # newdate=pl.num2date(newdate)
-    # newdate=str(newdate)
-    # newdate=newdate[0:10]
-    # dateset.append(newdate)
-# for date in dateset:
-    # loss0,gain0=s3judgement('C:\Users\Administrator\Desktop\paper\data/international-crawler/BJS-HKG.csv',date)
-    # loss+=loss0
-    # gain+=gain0
-# loss=loss/200.0
-# gain=gain/200.0
-# print loss,gain
